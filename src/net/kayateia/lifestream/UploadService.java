@@ -132,7 +132,7 @@ public class UploadService extends Service {
 				HashMap<String, String> params = new HashMap<String, String>();
 				params.put("auth", authToken);
 
-				String baseUrl = Settings.GetBaseUrl(this);
+				String baseUrl = Settings.GetBaseUrl();
 				String result = HttpMultipartUpload.Upload(new URL(baseUrl + "upload.php"),
 					f,
 					"uploadedfile", params, getBaseContext());

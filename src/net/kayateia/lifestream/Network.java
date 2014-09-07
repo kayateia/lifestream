@@ -68,7 +68,7 @@ public class Network {
 		parameters.put("auth", authId);
 		String resultText = "";
 		try {
-			String baseUrl = Settings.GetBaseUrl(context);
+			String baseUrl = Settings.GetBaseUrl();
 			resultText = HttpMultipartUpload.DownloadString(
 				new URL(baseUrl + "login.php"),
 				parameters, context);

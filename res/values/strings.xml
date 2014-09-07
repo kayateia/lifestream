@@ -27,6 +27,7 @@
     <string name="config_verbose">Enable verbose error notifications</string>
     <string name="config_upload_notifications">Enable upload notifications</string>
     <string name="config_vibration">Enable vibration</string>
+    <string name="config_sounds">Enable notification sound</string>
     <string name="title_section3">Section 3</string>
     <string name="title_section2">Section 2</string>
     <string name="title_section1">Section 1</string>

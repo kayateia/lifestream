@@ -74,15 +74,14 @@ public class Notifications {
 
 		Settings settings = new Settings(context);
 		boolean vibration = settings.getVibration();
+        boolean soundsEnabled = settings.getSoundsEnabled();
 		int defaults = 0;
-		if (vibration && showLed)
+		if (vibration && soundsEnabled && showLed)
 			defaults = Notification.DEFAULT_ALL;
 		else {
-			defaults = Notification.DEFAULT_SOUND;
-			if (vibration)
-				defaults |= Notification.DEFAULT_VIBRATE;
-			if (showLed)
-				defaults |= Notification.DEFAULT_LIGHTS;
+            defaults = (soundsEnabled) ? Notification.DEFAULT_SOUND : 0;
+            defaults |= (vibration) ? Notification.DEFAULT_VIBRATE : 0;
+            defaults |= (showLed) ? Notification.DEFAULT_LIGHTS : 0;
 		}
 
 		Notification.Builder notificationBuilder = new Notification.Builder(context)

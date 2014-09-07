@@ -121,6 +121,9 @@ public class TabConfig
 		CheckBox cbVibration = (CheckBox)_view.findViewById(R.id.cbVibration);
 		cbVibration.setChecked(_settings.getVibration());
 
+        CheckBox cbSound = (CheckBox)_view.findViewById(R.id.cbSounds);
+        cbSound.setChecked(_settings.getSoundsEnabled());
+
 		CheckBox cbHqImage = (CheckBox)_view.findViewById(R.id.cbHighQualityImage);
 		cbHqImage.setChecked(_settings.getHighQualityScale());
 
@@ -190,6 +193,7 @@ public class TabConfig
 		CheckBox uploads = (CheckBox)_view.findViewById(R.id.cbUploadNotifications);
 		CheckBox verbose = (CheckBox)_view.findViewById(R.id.cbVerboseNotifications);
 		CheckBox vibration = (CheckBox)_view.findViewById(R.id.cbVibration);
+        CheckBox sounds = (CheckBox)_view.findViewById(R.id.cbSounds);
 		CheckBox hq = (CheckBox)_view.findViewById(R.id.cbHighQualityImage);
 		EditText imageSize = (EditText)_view.findViewById(R.id.maxImageSize);
 
@@ -198,6 +202,7 @@ public class TabConfig
 		settings.setUploadNotifications(uploads.isChecked());
 		settings.setVerbose(verbose.isChecked());
 		settings.setVibration(vibration.isChecked());
+        settings.setSoundsEnabled(sounds.isChecked());
 		settings.setHighQualityScale(hq.isChecked());
 		try {
 			settings.setImageSize(Integer.parseInt(imageSize.getText().toString()));

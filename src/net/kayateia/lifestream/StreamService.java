@@ -166,7 +166,7 @@ public class StreamService extends Service {
 
 			String notificationMsg = res.getString(R.string.download_detail);
 
-			String baseUrl = Settings.GetBaseUrl(this);
+			String baseUrl = Settings.GetBaseUrl();
 			URL url = new URL(baseUrl + "check-images.php");
 			String result = HttpMultipartUpload.DownloadString(url, params, this);
 			String[] users, files, paths;
