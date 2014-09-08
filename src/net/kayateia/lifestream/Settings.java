@@ -44,16 +44,16 @@ public class Settings {
 	public static final String PREFS_VERBOSE = "verbose";
 	public static final String PREFS_UPLOAD_NOTIFICATIONS = "uploadNotifications";
 	public static final String PREFS_VIBRATION = "vibration";
-    public static final String PREFS_SOUNDS = "sounds";
+	public static final String PREFS_SOUNDS = "sounds";
 	public static final String PREFS_PATHS = "paths";
 	public static final String PREFS_QUALITY = "hqscale";
 	public static final String PREFS_IMAGE_SIZE = "imageSize";
 	public static final String LAST_IMAGE_TIMESTAMP = "lastImageTimestamp";
-    
+
 	// Default time, in seconds, to set the "last timestamp" if none exists
 	public static final long DEFAULT_DURATION = 1 * 24 * 60 * 60;
 
-    public static final String BASE_URL = "<LifeStream Base URL>";
+	public static final String BASE_URL = "<LifeStream Base URL>";
 
 	// Thunk allows us to swap out URLs later if we want me to.
 	static public String GetBaseUrl() {
@@ -135,10 +135,10 @@ public class Settings {
 		_editor.putBoolean(PREFS_VIBRATION, v);
 	}
 
-    public boolean getSoundsEnabled() { return _settings.getBoolean(PREFS_SOUNDS, true); }
-    public void setSoundsEnabled(boolean v) {
-        edit().putBoolean(PREFS_SOUNDS, v);
-    }
+	public boolean getSoundsEnabled() { return _settings.getBoolean(PREFS_SOUNDS, true); }
+	public void setSoundsEnabled(boolean v) {
+		edit().putBoolean(PREFS_SOUNDS, v);
+	}
 
 	// This is stored as a JSON array. WatchedPaths interprets it.
 	public String getPaths() { return _settings.getString(PREFS_PATHS, ""); }
@@ -174,6 +174,6 @@ public class Settings {
 	SharedPreferences.Editor edit() {
 		if (_editor == null)
 			_editor = _settings.edit();
-        return _editor;
+		return _editor;
 	}
 }

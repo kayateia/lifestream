@@ -83,11 +83,11 @@
 	        android:layout_height="wrap_content"
 	        android:text="@string/config_vibration" />
 
-        <CheckBox
-                android:id="@+id/cbSounds"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/config_sounds" />
+	    <CheckBox
+		android:id="@+id/cbSounds"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:text="@string/config_sounds" />
 
 	    <CheckBox
 	        android:id="@+id/cbHighQualityImage"
