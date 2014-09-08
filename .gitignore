@@ -1,4 +1,6 @@
+.metadata/
 bin/
 gen/
 local/
+.DS_Store
 
