@@ -25,6 +25,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 
 import android.app.Service;
@@ -39,7 +40,9 @@ import android.graphics.Matrix;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.os.IBinder;
+import android.os.FileObserver;
 import android.os.PowerManager;
 import android.provider.MediaStore;
 import android.provider.MediaStore.MediaColumns;
@@ -51,10 +54,13 @@ public class MediaListenerService extends Service {
 	private static final int WAKELOCK_TIMEOUT = 10000;
 
 	private Settings _settings;
-	private PhotosObserver _photoObserver;
+	private PhotoMediaObserver _mediaObserver;
 	private WatchedPaths _watched;
 	private File _baseStoragePath;
 	private boolean _started;
+	private Hashtable<String,PhotoFileObserver> _fileObservers;
+	private ProcessedImages _db;
+	private ImageQueue _queue;
 
 	// Manually starts the listener service from elsewhere. Typically only used in the main activity.
 	static public void Start(Context context) {
@@ -75,12 +81,22 @@ public class MediaListenerService extends Service {
 		if (!_started) {
 			_baseStoragePath = Media.GetBaseStorage(this);
 			_watched = new WatchedPaths(new Settings(this));
-			_photoObserver = new PhotosObserver();
+			_mediaObserver = new PhotoMediaObserver(this);
+			_db = ProcessedImages.GetSingleton(getBaseContext());
+			_queue = ImageQueue.GetSingleton(getBaseContext());
 
 			// Start the stream check alarm. (FIXME)
 			CheckAlarm.SetAlarm(this);
 
-			getApplicationContext().getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, _photoObserver);
+			getApplicationContext().getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, _mediaObserver);
+
+			final File sdCard = Environment.getExternalStorageDirectory();
+			_fileObservers = new Hashtable<String,PhotoFileObserver>();
+			for (final WatchedPaths.Path p : _watched.getPaths()) {
+				PhotoFileObserver obs = new PhotoFileObserver(this, sdCard + p.path, FileObserver.CLOSE_WRITE);
+				obs.startWatching();
+			}
+
 			_started = true;
 			Log.i(LOG_TAG, "Service started");
 		} else {
@@ -90,14 +106,86 @@ public class MediaListenerService extends Service {
 		return START_STICKY;
 	}
 
-	private class PhotosObserver extends ContentObserver {
-		ProcessedImages _db;
-		ImageQueue _queue;
+	// Returns true if this one should kick the capture service.
+	private boolean processFile(File source) {
+		// Make sure it's not one of ours.
+		if (source.getAbsolutePath().startsWith(_baseStoragePath.getAbsolutePath())) {
+			Log.i(LOG_TAG, "Ignoring own file " + source);
+			return false;
+		} else {
+			final File[] extras = _watched.checkPath(source);
+			if (extras == null) {
+				Log.i(LOG_TAG, "Ignoring path-excluded file " + source);
+				return false;
+			}
+			if (extras.length > 0) {
+				Log.i(LOG_TAG, "Received " + extras.length + " extras:");
+				for (File f : extras) {
+					Log.i(LOG_TAG, "   " + f.getAbsolutePath());
+				}
+			}
 
-		public PhotosObserver() {
+			// Check the database too.
+			if (_db.haveProcessed(source.getName())) {
+				Log.w(LOG_TAG, "Already have " + source + " in the database. Skipping. (This shouldn't happen.)");
+				return false;
+			}
+
+			// Pass! Put it on the queue.
+			_queue.addToQueue(source.getAbsolutePath());
+			Log.i(LOG_TAG, "Added item " + source.getAbsolutePath() + " to the processing queue");
+			return true;
+		}
+	}
+
+	private class PhotoFileObserver extends FileObserver {
+		String _basePath;
+		MediaListenerService _service;
+
+		public PhotoFileObserver(MediaListenerService service, String path, int mask) {
+			super(path, mask);
+			_service = service;
+			_basePath = path;
+			Log.i(LOG_TAG, "Starting photo file observer on " + path);
+		}
+
+		@Override
+		public void onEvent(int event, String path) {
+			// The wacky acquire/release cycle is unfortunately needed because
+			// things happen through an AsyncTask. We assume a release is required
+			// unless onChangeInner informs us (by returning false) that the
+			// duty has been passed on to its AsyncTask. In theory, AsyncTask
+			// should prevent it from being forgotten.
+			PowerManager pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
+			final PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "");
+
+			try {
+				// If we somehow don't release it within the timeout, do it anyway.
+				Log.v(LOG_TAG, "PhotoFileObserver: Acquire wakelock");
+				if (wl != null)
+					wl.acquire(WAKELOCK_TIMEOUT);
+
+				onChangeInner(path);
+			} finally {
+				Log.v(LOG_TAG, "PhotoFileObserver: Release wakelock by default");
+				if (wl != null && wl.isHeld())
+					wl.release();
+			}
+		}
+
+		void onChangeInner(String path) {
+			Log.i(LOG_TAG, "Received file event: " + path);
+			if (_service.processFile(new File(_basePath + File.separatorChar + path)))
+				CaptureService.Kick(getBaseContext());
+		}
+	}
+
+	private class PhotoMediaObserver extends ContentObserver {
+		MediaListenerService _service;
+
+		public PhotoMediaObserver(MediaListenerService service) {
 			super(null);
-			_db = ProcessedImages.GetSingleton(getBaseContext());
-			_queue = ImageQueue.GetSingleton(getBaseContext());
+			_service = service;
 		}
 
 		@Override
@@ -117,13 +205,13 @@ public class MediaListenerService extends Service {
 
 			try {
 				// If we somehow don't release it within the timeout, do it anyway.
-				Log.v(LOG_TAG, "Acquire wakelock");
+				Log.v(LOG_TAG, "PhotoMediaServer: Acquire wakelock");
 				if (wl != null)
 					wl.acquire(WAKELOCK_TIMEOUT);
 				super.onChange(selfChange);
 				onChangeInner();
 			} finally {
-				Log.v(LOG_TAG, "Release wakelock by default");
+				Log.v(LOG_TAG, "PhotoMediaServer: Release wakelock by default");
 				if (wl != null && wl.isHeld())
 					wl.release();
 			}
@@ -136,30 +224,9 @@ public class MediaListenerService extends Service {
 			for (final Media media : mediaList) {
 				// Build the paths
 				final File source = media.getFile();
-
-				// Make sure it's not one of ours.
-				if (source.getAbsolutePath().startsWith(_baseStoragePath.getAbsolutePath())) {
-					Log.i(LOG_TAG, "Ignoring own file " + source);
-				} else {
-					final File[] extras = _watched.checkPath(source);
-					if (extras == null) {
-						Log.i(LOG_TAG, "Ignoring path-excluded file " + source);
-						continue;
-					}
-
-					// Check the database too.
-					if (_db.haveProcessed(source.getName())) {
-						Log.w(LOG_TAG, "Already have " + source + " in the database. Skipping. (This shouldn't happen.)");
-						continue;
-					}
-
-					// Pass! Put it on the queue.
-					_queue.addToQueue(source.getAbsolutePath());
-					kickCapture = true;
-					Log.i(LOG_TAG, "Added item " + source.getAbsolutePath() + " to the processing queue");
-				}
+				kickCapture = _service.processFile(source) || kickCapture;
 			}
-			
+
 			// Kick off the capture service if we need to
 			if (kickCapture) {
 				CaptureService.Kick(getBaseContext());
